@@ -14,6 +14,7 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', data.token);
+      localStorage.setItem('usuario', JSON.stringify(data.usuario));
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Error al iniciar sesión, por favor inténtalo de nuevo.');
