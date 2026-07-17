@@ -16,4 +16,11 @@ function verificarToken(req, res, next) {
   }
 }
 
-module.exports = { verificarToken };
+function verificarAdmin(req, res, next) {
+  if (!req.usuario || req.usuario.rol !== 'admin') {
+    return res.status(403).json({ error: 'Esta acción requiere permisos de administrador' });
+  }
+  next();
+}
+
+module.exports = { verificarToken, verificarAdmin };

@@ -13,6 +13,7 @@ body {
 .navbar-brand { font-weight: 700; font-size: 1.1rem; }
 .navbar-links a { color: white; margin-right: 16px; text-decoration: none; }
 .navbar-links button { background: #ffffff22; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+.navbar-user { color: #cfe0ff; font-size: 0.85rem; margin-right: 12px; }
 
 .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
 label { display: block; margin: 8px 0 4px; font-weight: 600; font-size: 0.9rem; }

@@ -10,6 +10,7 @@ require('./models'); // registra relaciones
 const authRoutes = require('./routes/authRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const productoRoutes = require('./routes/productoRoutes');
+const usuarioRoutes = require('./routes/usuarioRoutes');
 const facturaRoutes = require('./routes/facturaRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -26,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/productos', productoRoutes);
 app.use('/api/facturas', facturaRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 
 app.use(errorHandler);
 

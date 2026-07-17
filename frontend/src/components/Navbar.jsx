@@ -4,9 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 export default function Navbar() {
   const navigate = useNavigate();
   const autenticado = !!localStorage.getItem('token');
+  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+  const esAdmin = usuario?.rol === 'admin';
 
   function salir() {
     localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
     navigate('/login');
   }
 
@@ -21,6 +24,8 @@ export default function Navbar() {
         <Link to="/facturas/nueva">Nueva Factura</Link>
         <Link to="/clientes">Clientes</Link>
         <Link to="/productos">Productos</Link>
+        {esAdmin && <Link to="/usuarios">Usuarios</Link>}
+        {usuario && <span className="navbar-user">{usuario.nombre} ({usuario.rol})</span>}
         <button onClick={salir}>Salir</button>
       </div>
     </nav>
