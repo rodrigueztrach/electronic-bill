@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
+import CabysAutocomplete from '../components/CabysAutocomplete';
 
 const vacio = {
   codigo_cabys: '', codigo_interno: '', descripcion: '', unidad_medida: 'Unid',
@@ -9,6 +10,7 @@ const vacio = {
 export default function Productos() {
   const [productos, setProductos] = useState([]);
   const [form, setForm] = useState(vacio);
+  const [claveReset, setClaveReset] = useState(0); // fuerza remount del autocompletar tras guardar
 
   async function cargar() {
     const { data } = await api.get('/productos');
@@ -22,10 +24,26 @@ export default function Productos() {
     setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
   }
 
+  /** Se llama cuando el usuario elige un resultado del buscador CABYS. */
+  function onSeleccionarCabys(item) {
+    setForm((f) => ({
+      ...f,
+      codigo_cabys: item.codigo,
+      descripcion: item.descripcion,
+      porcentaje_iva: item.es_exento ? 0 : item.porcentaje_iva,
+      es_exento: item.es_exento,
+    }));
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
+    if (!form.codigo_cabys) {
+      alert('Selecciona un código CABYS de la lista antes de guardar');
+      return;
+    }
     await api.post('/productos', form);
     setForm(vacio);
+    setClaveReset((k) => k + 1);
     cargar();
   }
 
@@ -41,23 +59,22 @@ export default function Productos() {
       <div className="card">
         <h3>Nuevo producto</h3>
         <form onSubmit={onSubmit} className="form-grid">
-          <input name="codigo_cabys" placeholder="Código CAByS (13 dígitos)" value={form.codigo_cabys} onChange={onChange} required maxLength={13} />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label>Buscar en el catálogo CABYS</label>
+            <CabysAutocomplete key={claveReset} onSeleccionar={onSeleccionarCabys} />
+          </div>
+
+          {form.codigo_cabys && (
+            <div className="cabys-seleccionado" style={{ gridColumn: '1 / -1' }}>
+              Código CABYS: <strong>{form.codigo_cabys}</strong> — {form.descripcion} (
+              {form.es_exento ? 'Exento' : `${form.porcentaje_iva}% IVA`})
+            </div>
+          )}
+
           <input name="codigo_interno" placeholder="Código interno (opcional)" value={form.codigo_interno} onChange={onChange} />
-          <input name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={onChange} required />
           <input name="unidad_medida" placeholder="Unidad de medida" value={form.unidad_medida} onChange={onChange} />
           <input name="precio_unitario" type="number" step="0.00001" placeholder="Precio unitario" value={form.precio_unitario} onChange={onChange} required />
-          <select name="porcentaje_iva" value={form.porcentaje_iva} onChange={onChange}>
-            <option value="13">13% (tarifa general)</option>
-            <option value="8">8%</option>
-            <option value="4">4%</option>
-            <option value="2">2%</option>
-            <option value="1">1%</option>
-            <option value="0">0% / Exento</option>
-          </select>
-          <label className="checkbox-inline">
-            <input type="checkbox" name="es_exento" checked={form.es_exento} onChange={onChange} />
-            Exento de IVA
-          </label>
+
           <button type="submit">Guardar producto</button>
         </form>
       </div>

@@ -84,5 +84,13 @@ CREATE TABLE IF NOT EXISTS detalle_facturas (
   updated_at TIMESTAMP DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS cabys_codigos (
+  codigo VARCHAR(13) PRIMARY KEY,
+  descripcion VARCHAR(300) NOT NULL,
+  porcentaje_iva NUMERIC(5,2) NOT NULL DEFAULT 13,
+  es_exento BOOLEAN DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_cabys_descripcion ON cabys_codigos USING gin (to_tsvector('spanish', descripcion));
 CREATE INDEX IF NOT EXISTS idx_facturas_cliente ON facturas(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_detalle_factura ON detalle_facturas(factura_id);

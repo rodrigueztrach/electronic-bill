@@ -12,6 +12,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const productoRoutes = require('./routes/productoRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const facturaRoutes = require('./routes/facturaRoutes');
+const cabysRoutes = require('./routes/cabysRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -28,7 +29,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/productos', productoRoutes);
 app.use('/api/facturas', facturaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
-
+app.use('/api/cabys', cabysRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
