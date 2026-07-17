@@ -16,7 +16,7 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al iniciar sesión');
+      setError(err.response?.data?.error || 'Error al iniciar sesión, por favor inténtalo de nuevo.');
     }
   }
 
