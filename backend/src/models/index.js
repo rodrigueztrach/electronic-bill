@@ -4,6 +4,7 @@ const Producto = require('./Producto');
 const Factura = require('./Factura');
 const DetalleFactura = require('./DetalleFactura');
 const Usuario = require('./Usuario');
+const CabysCodigo = require('./CabysCodigo');
 
 // Relaciones
 Cliente.hasMany(Factura, { foreignKey: 'cliente_id' });
@@ -22,4 +23,5 @@ module.exports = {
   Factura,
   DetalleFactura,
   Usuario,
+  CabysCodigo,
 };
