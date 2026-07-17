@@ -1,0 +1,45 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f4f6f8;
+  color: #1a1a1a;
+}
+.container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+.navbar {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #0b3d91; color: white; padding: 12px 24px;
+}
+.navbar-brand { font-weight: 700; font-size: 1.1rem; }
+.navbar-links a { color: white; margin-right: 16px; text-decoration: none; }
+.navbar-links button { background: #ffffff22; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+
+.card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+label { display: block; margin: 8px 0 4px; font-weight: 600; font-size: 0.9rem; }
+input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; }
+button { background: #0b3d91; color: white; border: none; padding: 10px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; }
+button:hover { background: #092d6e; }
+.error { color: #c0392b; font-weight: 600; }
+
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.checkbox-inline { display: flex; align-items: center; gap: 8px; }
+.checkbox-inline input { width: auto; }
+
+.linea-detalle { display: grid; grid-template-columns: 3fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+
+.tabla { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+.tabla th, .tabla td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+.tabla th { background: #eef1f6; }
+
+.grid-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.stat-card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat-card h3 { font-size: 2rem; margin: 0; }
+.stat-card.ok h3 { color: #1e8e3e; }
+.stat-card.warn h3 { color: #b8860b; }
+.stat-card.error h3 { color: #c0392b; }
+
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: #eee; }
+.badge.ok { background: #d7f2df; color: #1e8e3e; }
+.badge.warn { background: #fdf1d3; color: #b8860b; }
+.badge.error { background: #fbdcdc; color: #c0392b; }
