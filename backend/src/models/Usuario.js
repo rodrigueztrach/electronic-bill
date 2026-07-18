@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-
 const Usuario = sequelize.define('Usuario', {
   id: {
     type: DataTypes.UUID,
@@ -24,8 +23,20 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.STRING(20),
     defaultValue: 'admin',
   },
+  mfa_secret: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  mfa_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  mfa_backup_codes: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
 }, {
   tableName: 'usuarios',
 });
-
 module.exports = Usuario;
