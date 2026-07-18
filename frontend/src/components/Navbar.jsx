@@ -25,6 +25,7 @@ export default function Navbar() {
         <Link to="/clientes">Clientes</Link>
         <Link to="/productos">Productos</Link>
         {esAdmin && <Link to="/usuarios">Usuarios</Link>}
+        <Link to="/perfil">Mi perfil</Link> {/* 👈 NUEVA */}
         {usuario && <span className="navbar-user">{usuario.nombre} ({usuario.rol})</span>}
         <button onClick={salir}>Salir</button>
       </div>
