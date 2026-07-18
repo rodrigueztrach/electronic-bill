@@ -4,7 +4,7 @@ const Producto = require('./Producto');
 const Factura = require('./Factura');
 const DetalleFactura = require('./DetalleFactura');
 const Usuario = require('./Usuario');
-const CabysCodigo = require('./CabysCodigo');
+const CabysCodigo = require('./codigoCabys');
 
 // Relaciones
 Cliente.hasMany(Factura, { foreignKey: 'cliente_id' });

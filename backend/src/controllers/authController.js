@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const speakeasy = require('speakeasy'); 
+const speakeasy = require('speakeasy');
 const { Usuario } = require('../models');
 
 /**
@@ -37,13 +37,6 @@ async function registrar(req, res, next) {
   }
 }
 
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const speakeasy = require('speakeasy'); // 👈 NUEVO
-const { Usuario } = require('../models');
-
-// ... función registrar() sin cambios ...
-
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
@@ -53,7 +46,7 @@ async function login(req, res, next) {
     const valido = await bcrypt.compare(password, usuario.password_hash);
     if (!valido) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // 👇 NUEVO: si tiene MFA activo, no emitas el token todavía
+    // Si tiene MFA activo, no emitas el token todavía
     if (usuario.mfa_enabled) {
       return res.json({ mfaRequired: true, userId: usuario.id });
     }
@@ -73,4 +66,4 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { registrar, login }; 
+module.exports = { registrar, login };
