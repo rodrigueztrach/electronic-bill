@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "express-rate-limit": "^8.6.0",
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0"
+  }
+}
