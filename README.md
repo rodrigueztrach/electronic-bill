@@ -10,7 +10,7 @@ Base funcional para un sistema de facturación electrónica costarricense
 - **Firma digital** (punto de partida XML-DSig, ver advertencia abajo)
 - Cliente HTTP para la **API de Recepción de Hacienda** (sandbox/producción)
 
-## ⚠️ Antes de usar en producción
+## Antes de usar en producción
 
 Este código es una **base de arranque**, no un producto certificado. Debes completar/revisar:
 
