@@ -1,18 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../api/api';
 
-/**
- * Campo de búsqueda con autocompletar contra /api/cabys/buscar.
- * Al seleccionar un resultado, llama a onSeleccionar({ codigo, descripcion, porcentaje_iva, es_exento }).
- */
 export default function CabysAutocomplete({ onSeleccionar, valorInicial = '' }) {
   const [texto, setTexto] = useState(valorInicial);
   const [resultados, setResultados] = useState([]);
   const [mostrando, setMostrando] = useState(false);
   const [cargando, setCargando] = useState(false);
   const timeoutRef = useRef(null);
+  const seleccionActivaRef = useRef(false); // evita re-buscar tras elegir un resultado
 
   useEffect(() => {
+    // Si el cambio de texto vino de una selección (no de que el usuario escriba),
+    // no dispares una nueva búsqueda.
+    if (seleccionActivaRef.current) {
+      seleccionActivaRef.current = false;
+      return;
+    }
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
     if (texto.trim().length < 3) {
@@ -31,14 +35,21 @@ export default function CabysAutocomplete({ onSeleccionar, valorInicial = '' }) 
       } finally {
         setCargando(false);
       }
-    }, 350); // debounce para no saturar la API mientras el usuario escribe
+    }, 350);
 
     return () => clearTimeout(timeoutRef.current);
   }, [texto]);
 
+  function onChangeTexto(valor) {
+    setTexto(valor);
+  }
+
   function elegir(item) {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current); // cancela cualquier búsqueda pendiente
+    seleccionActivaRef.current = true; // avisa al effect que este cambio de texto no debe re-buscar
     setTexto(`${item.descripcion} (${item.codigo})`);
     setMostrando(false);
+    setResultados([]);
     onSeleccionar(item);
   }
 
@@ -48,7 +59,7 @@ export default function CabysAutocomplete({ onSeleccionar, valorInicial = '' }) 
         type="text"
         placeholder="Busca por descripción o código CABYS..."
         value={texto}
-        onChange={(e) => setTexto(e.target.value)}
+        onChange={(e) => onChangeTexto(e.target.value)}
         onFocus={() => resultados.length > 0 && setMostrando(true)}
         onBlur={() => setTimeout(() => setMostrando(false), 150)}
       />
