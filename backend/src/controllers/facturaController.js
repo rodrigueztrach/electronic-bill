@@ -1,5 +1,6 @@
 const { Factura, DetalleFactura, Cliente, Producto, sequelize } = require('../models');
 const { generarConsecutivo, generarClave } = require('../utils/clave');
+const { codigoTarifaIVA } = require('../utils/tarifaIva');
 const { construirXmlFactura } = require('../services/xmlService');
 const { firmarXml } = require('../services/firmaService');
 const haciendaService = require('../services/haciendaService');
@@ -34,6 +35,10 @@ async function calcularLineasYTotales(lineasInput) {
     const montoIva = +(subtotal * (porcentajeIva / 100)).toFixed(5);
     const montoTotalLinea = +(subtotal + montoIva).toFixed(5);
 
+    // Se valida aquí, al calcular, para que la factura falle ANTES de
+    // llegar a construir el XML si algún producto tiene una tarifa inválida.
+    const codigoTarifa = codigoTarifaIVA({ porcentaje: porcentajeIva, esExento: producto.es_exento });
+
     if (porcentajeIva > 0) totalGravado += subtotal;
     else totalExento += subtotal;
     totalImpuesto += montoIva;
@@ -49,6 +54,7 @@ async function calcularLineasYTotales(lineasInput) {
       monto_descuento: montoDescuento,
       subtotal: +subtotal.toFixed(5),
       porcentaje_iva: porcentajeIva,
+      codigo_tarifa_iva: codigoTarifa,
       monto_iva: montoIva,
       monto_total_linea: montoTotalLinea,
     });
@@ -69,6 +75,23 @@ async function calcularLineasYTotales(lineasInput) {
   };
 }
 
+/** Reserva el siguiente número consecutivo de forma segura ante concurrencia. */
+async function reservarConsecutivo(tipoDocumento, t) {
+  const [rows] = await sequelize.query(
+    `SELECT numero FROM contadores_consecutivo WHERE tipo_documento = :tipo FOR UPDATE`,
+    { replacements: { tipo: tipoDocumento }, transaction: t }
+  );
+  if (!rows) {
+    throw new Error(`No existe contador configurado para tipo_documento ${tipoDocumento}`);
+  }
+  const numero = rows.numero + 1;
+  await sequelize.query(
+    `UPDATE contadores_consecutivo SET numero = :n WHERE tipo_documento = :tipo`,
+    { replacements: { n: numero, tipo: tipoDocumento }, transaction: t }
+  );
+  return numero;
+}
+
 async function crear(req, res, next) {
   const t = await sequelize.transaction();
   try {
@@ -78,6 +101,8 @@ async function crear(req, res, next) {
       condicion_venta = '01',
       medio_pago = '01',
       moneda = 'CRC',
+      tipo_cambio = 1,
+      plazo_credito = null,
       lineas: lineasInput,
     } = req.body;
 
@@ -85,13 +110,18 @@ async function crear(req, res, next) {
     if (!Array.isArray(lineasInput) || lineasInput.length === 0) {
       return res.status(400).json({ error: 'Debe incluir al menos una línea de detalle' });
     }
+    if (condicion_venta === '02' && !plazo_credito) {
+      return res.status(400).json({ error: 'plazo_credito es requerido cuando la condición de venta es crédito' });
+    }
+    if (moneda !== 'CRC' && (!tipo_cambio || tipo_cambio <= 0)) {
+      return res.status(400).json({ error: 'tipo_cambio inválido para moneda distinta de CRC' });
+    }
 
     const cliente = await Cliente.findByPk(cliente_id);
     if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    // 1) Consecutivo: siguiente número para este tipo de documento
-    const cantidadPrevias = await Factura.count({ where: { tipo_documento } });
-    const numeroConsecutivo = cantidadPrevias + 1;
+    // 1) Consecutivo: reservado de forma segura dentro de la transacción
+    const numeroConsecutivo = await reservarConsecutivo(tipo_documento, t);
     const consecutivo = generarConsecutivo({
       sucursal: emisorCfg.sucursal,
       terminal: emisorCfg.terminal,
@@ -107,7 +137,7 @@ async function crear(req, res, next) {
       consecutivo,
     });
 
-    // 3) Cálculo de líneas y totales
+    // 3) Cálculo de líneas y totales (valida códigos de tarifa IVA aquí)
     const { lineas, totales } = await calcularLineasYTotales(lineasInput);
 
     // 4) Persistencia inicial (estado pendiente)
@@ -120,6 +150,8 @@ async function crear(req, res, next) {
       condicion_venta,
       medio_pago,
       moneda,
+      tipo_cambio: moneda !== 'CRC' ? tipo_cambio : 1,
+      plazo_credito: condicion_venta === '02' ? Number(plazo_credito) : null,
       ...totales,
       estado_hacienda: 'pendiente',
     }, { transaction: t });
@@ -138,8 +170,6 @@ async function crear(req, res, next) {
     try {
       xmlFirmado = firmarXml(xmlSinFirmar);
     } catch (errFirma) {
-      // Si no hay certificado configurado (ambiente de desarrollo), guardamos
-      // el XML sin firmar y marcamos el estado para revisión manual.
       await factura.update({
         xml_firmado: xmlSinFirmar,
         estado_hacienda: 'error_firma',
@@ -206,7 +236,6 @@ async function obtener(req, res, next) {
   } catch (err) { next(err); }
 }
 
-/** Consulta a Hacienda el estado actual del comprobante y actualiza el registro local. */
 async function consultarEstado(req, res, next) {
   try {
     const factura = await Factura.findByPk(req.params.id);
