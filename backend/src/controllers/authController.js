@@ -16,6 +16,7 @@ async function registrar(req, res, next) {
     if (!nombre || !email || !password) {
       return res.status(400).json({ error: 'nombre, email y password son requeridos' });
     }
+    
 
     const totalUsuarios = await Usuario.count();
     if (totalUsuarios > 0) {
