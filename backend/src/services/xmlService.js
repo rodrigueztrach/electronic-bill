@@ -3,17 +3,13 @@ const emisor = require('../config/emisor');
 
 /**
  * Construye el XML de una Factura Electrónica (tipo 01) según la
- * estructura v4.3 del Ministerio de Hacienda.
- *
- * NOTA: Esta es una estructura BASE con los campos más comunes.
- * Debes ajustarla/completarla según tu caso real (exoneraciones,
- * otros cargos, referencias a otros documentos, moneda extranjera, etc.)
- * revisando el "Anexo v4.3" oficial.
+ * estructura v4.4 del Ministerio de Hacienda (vigente desde el
+ * 01/09/2025).
  */
 function construirXmlFactura({ factura, cliente, detalles }) {
   const root = create({ version: '1.0', encoding: 'UTF-8' })
     .ele('FacturaElectronica', {
-      xmlns: 'https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica',
+      xmlns: 'https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica',
       'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
     });
 
@@ -71,11 +67,14 @@ function construirXmlFactura({ factura, cliente, detalles }) {
   if (cliente.email) rec.ele('CorreoElectronico').txt(cliente.email).up();
   rec.up();
 
-  // --- Condición de venta / medio de pago ---
+  // --- Condición de venta / plazo de crédito ---
   root.ele('CondicionVenta').txt(factura.condicion_venta).up();
-  const medioPago = root.ele('MedioPago');
-  medioPago.ele('TipoMedioPago').txt(factura.medio_pago).up();
-  medioPago.up();
+  if (factura.condicion_venta === '02' && factura.plazo_credito) {
+    root.ele('PlazoCredito').txt(String(factura.plazo_credito)).up();
+  }
+
+  // NOTA: en v4.4 el nodo "MedioPago" se trasladó al apartado de
+  // ResumenFactura (ver más abajo), ya no va aquí en el encabezado.
 
   // --- Detalle del servicio ---
   const detalleServicio = root.ele('DetalleServicio');
@@ -95,10 +94,10 @@ function construirXmlFactura({ factura, cliente, detalles }) {
       desc.up();
     }
     ld.ele('SubTotal').txt(Number(linea.subtotal).toFixed(5)).up();
-    if (Number(linea.porcentaje_iva) > 0) {
+    if (Number(linea.porcentaje_iva) > 0 || linea.codigo_tarifa_iva) {
       const imp = ld.ele('Impuesto');
       imp.ele('Codigo').txt('01').up(); // 01 = IVA
-      imp.ele('CodigoTarifaIVA').txt(codigoTarifaIVA(linea.porcentaje_iva)).up();
+      imp.ele('CodigoTarifaIVA').txt(linea.codigo_tarifa_iva).up();
       imp.ele('Tarifa').txt(Number(linea.porcentaje_iva).toFixed(2)).up();
       imp.ele('Monto').txt(Number(linea.monto_iva).toFixed(5)).up();
       imp.up();
@@ -111,8 +110,14 @@ function construirXmlFactura({ factura, cliente, detalles }) {
 
   // --- Resumen de la factura ---
   const resumen = root.ele('ResumenFactura');
-  const totalesGrav = resumen.ele('TotalesTransaccion') ? null : null; // placeholder si se requiere sub-nodo
-  resumen.ele('CodigoTipoMoneda').ele('CodigoMoneda').txt(factura.moneda).up().up();
+
+  const codigoTipoMoneda = resumen.ele('CodigoTipoMoneda');
+  codigoTipoMoneda.ele('CodigoMoneda').txt(factura.moneda).up();
+  if (factura.moneda !== 'CRC') {
+    codigoTipoMoneda.ele('TipoCambio').txt(Number(factura.tipo_cambio).toFixed(5)).up();
+  }
+  codigoTipoMoneda.up();
+
   resumen.ele('TotalServGravados').txt('0.00000').up();
   resumen.ele('TotalServExentos').txt('0.00000').up();
   resumen.ele('TotalMercanciasGravadas').txt(Number(factura.total_gravado).toFixed(5)).up();
@@ -123,23 +128,19 @@ function construirXmlFactura({ factura, cliente, detalles }) {
   resumen.ele('TotalDescuentos').txt('0.00000').up();
   resumen.ele('TotalVentaNeta').txt(Number(factura.total_venta).toFixed(5)).up();
   resumen.ele('TotalImpuesto').txt(Number(factura.total_impuesto).toFixed(5)).up();
+
+  // MedioPago ahora vive aquí en v4.4, no en el encabezado
+  const medioPago = resumen.ele('MedioPago');
+  medioPago.ele('TipoMedioPago').txt(factura.medio_pago).up();
+  medioPago.ele('TotalMedioPago').txt(Number(factura.total_comprobante).toFixed(5)).up();
+  medioPago.up();
+
   resumen.ele('TotalComprobante').txt(Number(factura.total_comprobante).toFixed(5)).up();
   resumen.up();
 
   root.up();
 
   return root.end({ prettyPrint: true });
-}
-
-/**
- * Mapea el porcentaje de IVA al código de tarifa que exige Hacienda.
- * 01: 1%, 02: 2%, 03: 4% (antiguo), 04: 8%, 08: 13% (tarifa general), 09: exento/0%
- * (Consulta la tabla de códigos vigente en el Anexo v4.3, esto es orientativo.)
- */
-function codigoTarifaIVA(porcentaje) {
-  const p = Number(porcentaje);
-  const mapa = { 0: '01', 1: '09', 2: '10', 4: '11', 8: '12', 13: '08' };
-  return mapa[p] || '08';
 }
 
 module.exports = { construirXmlFactura };
