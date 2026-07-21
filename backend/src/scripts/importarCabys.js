@@ -1,27 +1,48 @@
 /**
  * Importa el catálogo CABYS a la base de datos desde el CSV oficial del
- * BCCR/Hacienda (formato jerárquico de 9 niveles de categoría).
+ * Ministerio de Hacienda (formato jerárquico de 9 niveles de categoría,
+ * delimitado por punto y coma ";").
  *
  * Uso:
  *   node src/scripts/importarCabys.js ruta/al/catalogo.csv
  *
- * El archivo oficial tiene esta estructura real:
- *   Fila 1: vacía (solo comas)
+ * Estructura real del archivo:
+ *   Fila 1: vacía (solo separadores ";;;;...")
  *   Fila 2: encabezados -> Categoría 1, Descripción (categoría 1), ...,
- *           Categoría 9, Descripción (categoría 9), Impuesto, ...
- *   Fila 3 en adelante: los datos.
+ *           Categoría 9, Descripción (categoría 9), Impuesto,
+ *           Nota explicativa 1. Incluye, Nota explicativa 2. Excluye
+ *   Fila 3 en adelante: datos.
  *
  * El código CABYS real de 13 dígitos y su descripción están en la ÚLTIMA
  * columna "Categoría N" (normalmente la 9) y su "Descripción (categoría N)"
  * inmediata. Este script detecta automáticamente cuáles son esas columnas
- * leyendo el encabezado, así que no importa si tu versión del catálogo
- * trae 8 o 9 niveles de categoría.
+ * leyendo el encabezado, así no importa si tu versión del catálogo trae
+ * 8 o 9 niveles.
+ *
+ * NOTA: se usa la librería csv-parse (no un split manual) porque el
+ * archivo tiene campos entre comillas con comas y saltos de línea
+ * internos (notas explicativas de varias líneas), que un split simple
+ * por línea o por coma no puede manejar de forma confiable.
  */
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
+const { parse } = require('csv-parse/sync');
 const sequelize = require('../config/db');
 const CabysCodigo = require('../models/CabysCodigo');
+
+const TAMANO_LOTE = 1000;
+
+/** Convierte el texto de la columna "Impuesto" a { porcentaje, esExento } o null si la fila debe omitirse. */
+function interpretarImpuesto(valorCrudo) {
+  const v = (valorCrudo || '').trim();
+
+  if (v === 'Exento') return { porcentaje: 0, esExento: true };
+  if (v === 'na' || v === '') return null; // filas especiales (p.ej. transferencias) sin IVA aplicable
+
+  const match = v.match(/^(\d+(\.\d+)?)\s*%$/);
+  if (!match) return null; // valor no reconocido, se omite en vez de adivinar
+  return { porcentaje: Number(match[1]), esExento: false };
+}
 
 async function importar(rutaCsv) {
   if (!rutaCsv) {
@@ -39,75 +60,71 @@ async function importar(rutaCsv) {
   await sequelize.authenticate();
   await CabysCodigo.sync(); // crea la tabla si no existe
 
-  const rl = readline.createInterface({
-    input: fs.createReadStream(rutaAbsoluta, { encoding: 'utf8' }),
-    crlfDelay: Infinity,
+  let contenido = fs.readFileSync(rutaAbsoluta, 'utf8');
+
+  // La primera línea del archivo oficial es solo separadores vacíos
+  // (";;;;...."), no es el encabezado real. Se descarta para que la
+  // fila 2 (encabezados reales) sea tomada correctamente.
+  const primerSalto = contenido.indexOf('\n');
+  const primeraLinea = contenido.slice(0, primerSalto).replace(/[;\r]/g, '');
+  if (primeraLinea.trim() === '') {
+    contenido = contenido.slice(primerSalto + 1);
+  }
+
+  const registros = parse(contenido, {
+    delimiter: ';',
+    columns: true,
+    skip_empty_lines: true,
+    relax_column_count: true,
+    bom: true,
   });
 
-  let numeroLinea = 0;
-  let idxCodigo = -1;
-  let idxDescripcion = -1;
-  let idxImpuesto = -1;
+  console.log(`Filas leídas del CSV: ${registros.length}`);
+
+  // Detecta automáticamente cuál es la última columna "Categoría N"
+  // (el código más profundo/específico) y su descripción inmediata.
+  const columnas = Object.keys(registros[0] || {});
+  let claveCodigo = null;
+  let claveDescripcion = null;
+  let claveImpuesto = null;
+
+  columnas.forEach((col, i) => {
+    const texto = col.trim().toLowerCase();
+    if (texto.startsWith('categoría') || texto.startsWith('categoria')) {
+      claveCodigo = col;
+      claveDescripcion = columnas[i + 1];
+    }
+    if (texto.startsWith('impuesto')) {
+      claveImpuesto = col;
+    }
+  });
+
+  console.log(`Columnas detectadas -> código: "${claveCodigo}", descripción: "${claveDescripcion}", impuesto: "${claveImpuesto}"`);
+
+  if (!claveCodigo || !claveImpuesto) {
+    console.error('No se pudieron detectar las columnas de código/impuesto en el encabezado. Revisa el CSV.');
+    process.exit(1);
+  }
 
   let lote = [];
   let totalInsertados = 0;
   let totalIgnoradas = 0;
-  const TAMANO_LOTE = 1000;
 
-  for await (const linea of rl) {
-    numeroLinea++;
+  for (const fila of registros) {
+    const codigo = (fila[claveCodigo] || '').replace(/\D/g, '').padStart(13, '0');
+    const descripcion = (fila[claveDescripcion] || '').trim().slice(0, 300);
+    const impuesto = interpretarImpuesto(fila[claveImpuesto]);
 
-    // Fila 1 del archivo oficial: solo comas, sin datos. La saltamos.
-    if (numeroLinea === 1 && linea.replace(/,/g, '').trim() === '') {
-      continue;
-    }
-
-    const columnas = parsearLineaCsv(linea);
-
-    // Primera fila con contenido real = encabezados. Detectamos las columnas.
-    if (idxCodigo === -1) {
-      columnas.forEach((col, i) => {
-        const texto = col.trim().toLowerCase();
-        if (texto.startsWith('categoría') || texto.startsWith('categoria')) {
-          // Nos quedamos con la ÚLTIMA columna "Categoría N" encontrada
-          // (es la más profunda = el código CABYS real de 13 dígitos).
-          idxCodigo = i;
-          idxDescripcion = i + 1;
-        }
-        if (texto.startsWith('impuesto')) {
-          idxImpuesto = i;
-        }
-      });
-
-      console.log(`Encabezado detectado -> código: columna ${idxCodigo}, descripción: columna ${idxDescripcion}, impuesto: columna ${idxImpuesto}`);
-
-      if (idxCodigo === -1 || idxImpuesto === -1) {
-        console.error('No se pudieron detectar las columnas de código/impuesto en el encabezado. Revisa el CSV.');
-        process.exit(1);
-      }
-      continue; // esta fila era el encabezado, no se inserta
-    }
-
-    if (!linea.trim()) continue;
-
-    const codigoRaw = columnas[idxCodigo] || '';
-    const descripcionRaw = columnas[idxDescripcion] || '';
-    const impuestoRaw = columnas[idxImpuesto] || '';
-
-    const codigo = codigoRaw.replace(/\D/g, '').padStart(13, '0');
-    const descripcion = descripcionRaw.trim().slice(0, 300);
-    const porcentajeIva = parseFloat(impuestoRaw.replace('%', '').replace(',', '.').trim());
-
-    if (codigo.length !== 13 || !descripcion || Number.isNaN(porcentajeIva)) {
+    if (codigo.length !== 13 || !descripcion || !impuesto) {
       totalIgnoradas++;
-      continue; // fila inválida o incompleta, se ignora
+      continue;
     }
 
     lote.push({
       codigo,
       descripcion,
-      porcentaje_iva: porcentajeIva,
-      es_exento: porcentajeIva === 0,
+      porcentaje_iva: impuesto.porcentaje,
+      es_exento: impuesto.esExento,
     });
 
     if (lote.length >= TAMANO_LOTE) {
@@ -125,27 +142,6 @@ async function importar(rutaCsv) {
 
   console.log(`Importación completa. Códigos cargados: ${totalInsertados}. Filas ignoradas (inválidas): ${totalIgnoradas}.`);
   process.exit(0);
-}
-
-/** Parser simple de CSV que respeta comas dentro de comillas dobles. */
-function parsearLineaCsv(linea) {
-  const resultado = [];
-  let actual = '';
-  let dentroDeComillas = false;
-
-  for (let i = 0; i < linea.length; i++) {
-    const char = linea[i];
-    if (char === '"') {
-      dentroDeComillas = !dentroDeComillas;
-    } else if (char === ',' && !dentroDeComillas) {
-      resultado.push(actual);
-      actual = '';
-    } else {
-      actual += char;
-    }
-  }
-  resultado.push(actual);
-  return resultado;
 }
 
 const rutaCsv = process.argv[2];
