@@ -4,14 +4,11 @@ const speakeasy = require('speakeasy');
 const { Usuario, Empresa, sequelize } = require('../models');
 
 /**
- * Registro público, pero SOLO funciona si todavía no existe ningún usuario
- * en el sistema (bootstrap del primer administrador). Una vez que exista al
- * menos un usuario, este endpoint queda bloqueado y la creación de nuevos
- * usuarios (vendedores u otros admins) debe hacerse desde /api/usuarios,
- * que exige estar autenticado como admin.
- *
- * Además del usuario, crea el registro de la EMPRESA (datos fiscales del
- * emisor) que se usarán en cada factura electrónica.
+ * Registro público de una nueva empresa. Cada empresa que se registra
+ * crea su propio usuario administrador (rol 'admin'), dueño de esa
+ * empresa. No hay límite de empresas: cada una es independiente y
+ * solo su admin puede crear más usuarios (vendedores, otros admins)
+ * para ESA empresa desde /api/usuarios.
  */
 async function registrar(req, res, next) {
   const t = await sequelize.transaction();
@@ -31,14 +28,6 @@ async function registrar(req, res, next) {
       return res.status(400).json({ error: 'nombre, email, password e identificación son requeridos' });
     }
 
-    const totalUsuarios = await Usuario.count();
-    if (totalUsuarios > 0) {
-      await t.rollback();
-      return res.status(403).json({
-        error: 'Ya existe un administrador configurado. Pide a un admin que te cree una cuenta desde el módulo de Usuarios.',
-      });
-    }
-
     const existe = await Usuario.findOne({ where: { email } });
     if (existe) {
       await t.rollback();
@@ -46,7 +35,7 @@ async function registrar(req, res, next) {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
-    // El primer usuario del sistema siempre se crea como admin.
+    // Cada nueva empresa que se registra crea a su propio admin.
     const usuario = await Usuario.create(
       { nombre, email, password_hash, rol: 'admin' },
       { transaction: t }
