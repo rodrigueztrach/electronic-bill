@@ -137,3 +137,23 @@ ALTER TABLE facturas
 
 CREATE INDEX IF NOT EXISTS idx_productos_empresa ON productos(empresa_id);
 CREATE INDEX IF NOT EXISTS idx_facturas_empresa ON facturas(empresa_id);
+
+
+
+-- La tabla actual tiene tipo_documento como PK único (global).
+-- La recreamos con clave compuesta (empresa_id + tipo_documento).
+DROP TABLE IF EXISTS contadores_consecutivo;
+
+CREATE TABLE contadores_consecutivo (
+  empresa_id UUID NOT NULL REFERENCES empresa(id),
+  tipo_documento VARCHAR(2) NOT NULL,
+  numero INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (empresa_id, tipo_documento)
+);
+
+-- Campos del emisor que antes vivían en variables de entorno (.env)
+-- y ahora deben vivir por empresa.
+ALTER TABLE empresa
+  ADD COLUMN IF NOT EXISTS actividad_economica VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS sucursal VARCHAR(3) NOT NULL DEFAULT '001',
+  ADD COLUMN IF NOT EXISTS terminal VARCHAR(5) NOT NULL DEFAULT '00001';
