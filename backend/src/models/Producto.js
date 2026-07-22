@@ -7,8 +7,11 @@ const Producto = sequelize.define('Producto', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+  empresa_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
   codigo_cabys: {
-    // Código CAByS de 13 dígitos, obligatorio en v4.3
     type: DataTypes.STRING(13),
     allowNull: false,
   },
@@ -27,7 +30,6 @@ const Producto = sequelize.define('Producto', {
     allowNull: false,
   },
   porcentaje_iva: {
-    // 1, 2, 4, 8, 13 (tarifas vigentes), 0 = exento
     type: DataTypes.DECIMAL(5, 2),
     allowNull: false,
     defaultValue: 13,
