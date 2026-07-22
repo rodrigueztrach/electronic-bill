@@ -1,30 +1,16 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-// Tipos de identificación según Hacienda:
-// 01 Física, 02 Jurídica, 03 DIMEX, 04 NITE, 05 Extranjero no domiciliado
-const Cliente = sequelize.define('Cliente', {
+const Empresa = sequelize.define('Empresa', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  tipo_identificacion: {
-    type: DataTypes.STRING(2),
-    allowNull: false,
-    defaultValue: '01',
-  },
-  identificacion: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
-  },
-  nombre: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-  },
+  nombre: { type: DataTypes.STRING(100), allowNull: false },
   nombre_comercial: DataTypes.STRING(100),
-  email: DataTypes.STRING(160),
-  telefono: DataTypes.STRING(20),
+  tipo_identificacion: { type: DataTypes.STRING(2), allowNull: false, defaultValue: '01' },
+  identificacion: { type: DataTypes.STRING(20), allowNull: false },
   provincia: DataTypes.STRING(1),
   provincia_nombre: DataTypes.STRING(50),
   canton: DataTypes.STRING(2),
@@ -34,8 +20,13 @@ const Cliente = sequelize.define('Cliente', {
   barrio: DataTypes.STRING(2),
   barrio_nombre: DataTypes.STRING(50),
   senas_extra: DataTypes.STRING(250),
+  email: { type: DataTypes.STRING(160), allowNull: false },
+  email_copia: DataTypes.STRING(160),
+  telefono: DataTypes.STRING(20),
+  referencia: DataTypes.STRING(100),
+  usuario_id: { type: DataTypes.UUID, allowNull: false },
 }, {
-  tableName: 'clientes',
+  tableName: 'empresa',
 });
 
-module.exports = Cliente;
+module.exports = Empresa;
