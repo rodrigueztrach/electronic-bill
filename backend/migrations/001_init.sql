@@ -94,3 +94,35 @@ CREATE TABLE IF NOT EXISTS cabys_codigos (
 CREATE INDEX IF NOT EXISTS idx_cabys_descripcion ON cabys_codigos USING gin (to_tsvector('spanish', descripcion));
 CREATE INDEX IF NOT EXISTS idx_facturas_cliente ON facturas(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_detalle_factura ON detalle_facturas(factura_id);
+
+
+ALTER TABLE clientes
+  ADD COLUMN IF NOT EXISTS provincia_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS canton_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS distrito_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS barrio_nombre VARCHAR(50);
+
+
+  CREATE TABLE IF NOT EXISTS empresa (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nombre VARCHAR(100) NOT NULL,
+  nombre_comercial VARCHAR(100),
+  tipo_identificacion VARCHAR(2) NOT NULL DEFAULT '01',
+  identificacion VARCHAR(20) NOT NULL,
+  provincia VARCHAR(1),
+  provincia_nombre VARCHAR(50),
+  canton VARCHAR(2),
+  canton_nombre VARCHAR(50),
+  distrito VARCHAR(2),
+  distrito_nombre VARCHAR(50),
+  barrio VARCHAR(2),
+  barrio_nombre VARCHAR(50),
+  senas_extra VARCHAR(250),
+  email VARCHAR(160) NOT NULL,
+  email_copia VARCHAR(160),
+  telefono VARCHAR(20),
+  referencia VARCHAR(100),
+  usuario_id UUID NOT NULL REFERENCES usuarios(id),
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);

@@ -49,7 +49,7 @@ export default function Login() {
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Error al iniciar sesión, por favor inténtalo de nuevo.');
     }
@@ -63,7 +63,7 @@ export default function Login() {
       const { data } = await api.post('/auth/mfa/login', { userId, token: codigo });
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Código incorrecto, intenta de nuevo.');
     }

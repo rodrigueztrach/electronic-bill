@@ -4,7 +4,9 @@ const Producto = require('./Producto');
 const Factura = require('./Factura');
 const DetalleFactura = require('./DetalleFactura');
 const Usuario = require('./Usuario');
-const CabysCodigo = require('./CabysCodigo'); // <-- Corregido aquí
+const CabysCodigo = require('./CabysCodigo'); 
+const Empresa = require('./Empresa');
+
 
 // Relaciones
 Cliente.hasMany(Factura, { foreignKey: 'cliente_id' });
@@ -16,6 +18,9 @@ DetalleFactura.belongsTo(Factura, { foreignKey: 'factura_id' });
 Producto.hasMany(DetalleFactura, { foreignKey: 'producto_id' });
 DetalleFactura.belongsTo(Producto, { foreignKey: 'producto_id' });
 
+Empresa.hasMany(Cliente, { foreignKey: 'empresa_id' });
+Cliente.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+
 module.exports = {
   sequelize,
   Cliente,
@@ -24,4 +29,5 @@ module.exports = {
   DetalleFactura,
   Usuario,
   CabysCodigo,
+  Empresa,
 };
