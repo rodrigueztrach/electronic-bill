@@ -13,7 +13,7 @@ function NavbarPublico() {
         <Link to="/login" style={{ color: '#fff', textDecoration: 'none' }}>Inicio</Link>
         <Link to="/nosotros" style={{ color: '#fff', textDecoration: 'none' }}>Nosotros</Link>
         <Link to="/servicios" style={{ color: '#fff', textDecoration: 'none' }}>Servicios</Link>
-        <Link to="/login" style={{ color: '#fff', textDecoration: 'none' }}>Planes</Link>
+        <Link to="/planes" style={{ color: '#fff', textDecoration: 'none' }}>Planes</Link>
         <Link to="/registro" style={{ color: '#fff', textDecoration: 'none', fontWeight: 'bold' }}>Regístrese</Link>
         <Link to="/contacto" style={{ color: '#fff', textDecoration: 'none' }}>Contáctenos</Link>
       </nav>
@@ -24,7 +24,7 @@ function NavbarPublico() {
 export default function HomePublica() {
   return (
     <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      
+
       {/* --- Barra de Navegación Superior --- */}
       <NavbarPublico />
 
@@ -33,7 +33,7 @@ export default function HomePublica() {
         <h1 style={{ textAlign: 'center', color: '#333', fontSize: '36px', marginBottom: '40px' }}>Servicios</h1>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-          
+
           {/* Tarjeta 1: Trabajador independiente */}
           <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', textAlign: 'center' }}>
             <div style={{ width: '80px', height: '80px', backgroundColor: '#004080', borderRadius: '50%', margin: '0 auto 20px auto', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '24px' }}>
@@ -58,7 +58,7 @@ export default function HomePublica() {
               ⚙️
             </div>
             <h3 style={{ fontSize: '20px', color: '#333', marginBottom: '15px' }}>Integrador empresarial</h3>
-            <hr style={{ border: '0', borderTop: '1px solid #ddd', marginBottom: '20px' }} />  
+            <hr style={{ border: '0', borderTop: '1px solid #ddd', marginBottom: '20px' }} />
             <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', textAlign: 'left' }}>
               Si su empresa cuenta con un sistema de facturación ponemos a su disposición nuestra plataforma <strong>FE-CORE</strong> Empresarial.
             </p>

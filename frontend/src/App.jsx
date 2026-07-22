@@ -10,7 +10,9 @@ import FacturaForm from './pages/FacturaForm.jsx';
 import FacturaList from './pages/FacturaList.jsx';
 import Usuarios from './pages/Usuarios.jsx';
 import Perfil from './pages/Perfil';
-import HomePublica from './pages/HomePublica.jsx'; 
+import HomePublica from './pages/HomePublica.jsx';
+import Contacto from './pages/Contacto.jsx';
+import Planes from './pages/Planes.jsx';
 
 // Envuelve las rutas que llevan el Navbar privado del sistema
 function LayoutPrivado({ children }) {
@@ -30,7 +32,7 @@ function LayoutPrivado({ children }) {
 function RutaAdmin({ children }) {
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/login" replace />;
-  
+
   const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
   return usuario?.rol === 'admin' ? children : <Navigate to="/dashboard" replace />;
 }
@@ -44,8 +46,9 @@ export default function App() {
         <Route path="/home" element={<HomePublica />} />
         <Route path="/servicios" element={<HomePublica />} />
         <Route path="/nosotros" element={<HomePublica />} />
-        <Route path="/contacto" element={<HomePublica />} />
-        
+        <Route path="/planes" element={<Planes />} />
+        <Route path="/contacto" element={<Contacto />} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<RegistroEmpresa />} />
 
