@@ -126,3 +126,14 @@ ALTER TABLE clientes
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
+
+
+
+ALTER TABLE productos
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+ALTER TABLE facturas
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+CREATE INDEX IF NOT EXISTS idx_productos_empresa ON productos(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_empresa ON facturas(empresa_id);
