@@ -24,6 +24,9 @@ const Empresa = sequelize.define('Empresa', {
   email_copia: DataTypes.STRING(160),
   telefono: DataTypes.STRING(20),
   referencia: DataTypes.STRING(100),
+  actividad_economica: DataTypes.STRING(10),
+  sucursal: { type: DataTypes.STRING(3), allowNull: false, defaultValue: '001' },
+  terminal: { type: DataTypes.STRING(5), allowNull: false, defaultValue: '00001' },
   usuario_id: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'empresa',
