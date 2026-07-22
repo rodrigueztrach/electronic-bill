@@ -96,4 +96,36 @@ async function login(req, res, next) {
   }
 }
 
+
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+    const usuario = await Usuario.findOne({ where: { email } });
+    if (!usuario) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+    const valido = await bcrypt.compare(password, usuario.password_hash);
+    if (!valido) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+    // Si tiene MFA activo, no emitas el token todavía
+    if (usuario.mfa_enabled) {
+      return res.json({ mfaRequired: true, userId: usuario.id });
+    }
+
+    const empresa = await Empresa.findOne({ where: { usuario_id: usuario.id } });
+
+    const token = jwt.sign(
+      { id: usuario.id, email: usuario.email, rol: usuario.rol, empresa_id: empresa?.id || null },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    return res.json({
+      token,
+      usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol, empresa_id: empresa?.id || null },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = { registrar, login };
