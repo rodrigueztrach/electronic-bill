@@ -1,7 +1,7 @@
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const jwt = require('jsonwebtoken');
-const { Usuario } = require('../models');
+const { Usuario, Empresa } = require('../models');
 
 /**
  * PASO 1: el usuario (ya logueado, con su token normal) pide activar MFA.
@@ -85,16 +85,18 @@ async function loginMfa(req, res, next) {
 
     if (!verificado) return res.status(401).json({ error: 'Código MFA inválido' });
 
+    const empresa = await Empresa.findOne({ where: { usuario_id: usuario.id } });
+
     // Solo aquí, tras validar ambos factores, se emite el token real
     const jwtToken = jwt.sign(
-      { id: usuario.id, email: usuario.email, rol: usuario.rol },
+      { id: usuario.id, email: usuario.email, rol: usuario.rol, empresa_id: empresa?.id || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
 
     return res.json({
       token: jwtToken,
-      usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol },
+      usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol, empresa_id: empresa?.id || null },
     });
   } catch (err) {
     next(err);
