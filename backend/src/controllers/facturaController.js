@@ -1,16 +1,13 @@
-const { Factura, DetalleFactura, Cliente, Producto, sequelize } = require('../models');
+const { Factura, DetalleFactura, Cliente, Producto, Empresa, sequelize } = require('../models');
 const { generarConsecutivo, generarClave } = require('../utils/clave');
 const { codigoTarifaIVA } = require('../utils/tarifaIva');
 const { construirXmlFactura } = require('../services/xmlService');
 const { firmarXml } = require('../services/firmaService');
 const haciendaService = require('../services/haciendaService');
-const emisorCfg = require('../config/emisor');
+const { obtenerConfigEmisor } = require('../services/emisorService');
+const { QueryTypes } = require('sequelize');
 
-/**
- * Calcula los montos de cada línea y los totales de la factura a partir
- * de las líneas recibidas del frontend: [{ producto_id, cantidad, monto_descuento }]
- */
-async function calcularLineasYTotales(lineasInput) {
+async function calcularLineasYTotales(lineasInput, empresaId) {
   let totalGravado = 0;
   let totalExento = 0;
   let totalImpuesto = 0;
@@ -18,7 +15,7 @@ async function calcularLineasYTotales(lineasInput) {
   const lineas = [];
   for (let i = 0; i < lineasInput.length; i++) {
     const li = lineasInput[i];
-    const producto = await Producto.findByPk(li.producto_id);
+    const producto = await Producto.findOne({ where: { id: li.producto_id, empresa_id: empresaId } });
     if (!producto) {
       const e = new Error(`Producto ${li.producto_id} no encontrado`);
       e.status = 400;
@@ -35,8 +32,6 @@ async function calcularLineasYTotales(lineasInput) {
     const montoIva = +(subtotal * (porcentajeIva / 100)).toFixed(5);
     const montoTotalLinea = +(subtotal + montoIva).toFixed(5);
 
-    // Se valida aquí, al calcular, para que la factura falle ANTES de
-    // llegar a construir el XML si algún producto tiene una tarifa inválida.
     const codigoTarifa = codigoTarifaIVA({ porcentaje: porcentajeIva, esExento: producto.es_exento });
 
     if (porcentajeIva > 0) totalGravado += subtotal;
@@ -75,19 +70,44 @@ async function calcularLineasYTotales(lineasInput) {
   };
 }
 
-/** Reserva el siguiente número consecutivo de forma segura ante concurrencia. */
-async function reservarConsecutivo(tipoDocumento, t) {
-  const [rows] = await sequelize.query(
-    `SELECT numero FROM contadores_consecutivo WHERE tipo_documento = :tipo FOR UPDATE`,
-    { replacements: { tipo: tipoDocumento }, transaction: t }
-  );
-  if (!rows) {
-    throw new Error(`No existe contador configurado para tipo_documento ${tipoDocumento}`);
-  }
-  const numero = rows.numero + 1;
+/**
+ * Reserva el siguiente consecutivo PARA ESTA EMPRESA. Si es la primera
+ * vez que esta empresa emite este tipo de documento, crea la fila del
+ * contador empezando en 0. FOR UPDATE bloquea la fila para evitar que
+ * dos facturas casi simultáneas de la MISMA empresa reciban el mismo número.
+ *
+ * IMPORTANTE: se usa { type: QueryTypes.SELECT } para que sequelize.query
+ * devuelva directamente el arreglo de filas (no la tupla [resultados, metadata]
+ * por defecto). Sin esto, "rows" terminaba siendo el arreglo completo en vez
+ * de una fila, y "rows.numero" daba undefined -> NaN.
+ */
+async function reservarConsecutivo(empresaId, tipoDocumento, t) {
   await sequelize.query(
-    `UPDATE contadores_consecutivo SET numero = :n WHERE tipo_documento = :tipo`,
-    { replacements: { n: numero, tipo: tipoDocumento }, transaction: t }
+    `INSERT INTO contadores_consecutivo (empresa_id, tipo_documento, numero)
+     VALUES (:empresaId, :tipo, 0)
+     ON CONFLICT (empresa_id, tipo_documento) DO NOTHING`,
+    { replacements: { empresaId, tipo: tipoDocumento }, transaction: t }
+  );
+
+  const filas = await sequelize.query(
+    `SELECT numero FROM contadores_consecutivo
+     WHERE empresa_id = :empresaId AND tipo_documento = :tipo FOR UPDATE`,
+    {
+      replacements: { empresaId, tipo: tipoDocumento },
+      transaction: t,
+      type: QueryTypes.SELECT,
+    }
+  );
+
+  if (!filas.length) {
+    throw new Error(`No se pudo reservar consecutivo para empresa ${empresaId} / tipo ${tipoDocumento}`);
+  }
+
+  const numero = filas[0].numero + 1;
+  await sequelize.query(
+    `UPDATE contadores_consecutivo SET numero = :n
+     WHERE empresa_id = :empresaId AND tipo_documento = :tipo`,
+    { replacements: { n: numero, empresaId, tipo: tipoDocumento }, transaction: t }
   );
   return numero;
 }
@@ -95,6 +115,7 @@ async function reservarConsecutivo(tipoDocumento, t) {
 async function crear(req, res, next) {
   const t = await sequelize.transaction();
   try {
+    const empresaId = req.usuario.empresa_id;
     const {
       cliente_id,
       tipo_documento = '01',
@@ -117,11 +138,14 @@ async function crear(req, res, next) {
       return res.status(400).json({ error: 'tipo_cambio inválido para moneda distinta de CRC' });
     }
 
-    const cliente = await Cliente.findByPk(cliente_id);
+    const empresa = await Empresa.findByPk(empresaId);
+    if (!empresa) return res.status(400).json({ error: 'Empresa emisora no encontrada' });
+    const emisorCfg = obtenerConfigEmisor(empresa);
+
+    const cliente = await Cliente.findOne({ where: { id: cliente_id, empresa_id: empresaId } });
     if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    // 1) Consecutivo: reservado de forma segura dentro de la transacción
-    const numeroConsecutivo = await reservarConsecutivo(tipo_documento, t);
+    const numeroConsecutivo = await reservarConsecutivo(empresaId, tipo_documento, t);
     const consecutivo = generarConsecutivo({
       sucursal: emisorCfg.sucursal,
       terminal: emisorCfg.terminal,
@@ -129,7 +153,6 @@ async function crear(req, res, next) {
       numero: numeroConsecutivo,
     });
 
-    // 2) Clave numérica de 50 dígitos
     const fechaEmision = new Date();
     const clave = generarClave({
       fecha: fechaEmision,
@@ -137,11 +160,10 @@ async function crear(req, res, next) {
       consecutivo,
     });
 
-    // 3) Cálculo de líneas y totales (valida códigos de tarifa IVA aquí)
-    const { lineas, totales } = await calcularLineasYTotales(lineasInput);
+    const { lineas, totales } = await calcularLineasYTotales(lineasInput, empresaId);
 
-    // 4) Persistencia inicial (estado pendiente)
     const factura = await Factura.create({
+      empresa_id: empresaId,
       tipo_documento,
       clave,
       consecutivo,
@@ -163,8 +185,7 @@ async function crear(req, res, next) {
 
     await t.commit();
 
-    // 5) Generar XML + firmar (fuera de la transacción de BD)
-    const xmlSinFirmar = construirXmlFactura({ factura, cliente, detalles: lineas });
+    const xmlSinFirmar = construirXmlFactura({ factura, cliente, detalles: lineas, emisor: emisorCfg });
 
     let xmlFirmado;
     try {
@@ -183,7 +204,6 @@ async function crear(req, res, next) {
 
     await factura.update({ xml_firmado: xmlFirmado });
 
-    // 6) Envío a Hacienda
     try {
       const xmlBase64 = Buffer.from(xmlFirmado, 'utf8').toString('base64');
       const { status, data } = await haciendaService.enviarComprobante({
@@ -219,6 +239,7 @@ async function crear(req, res, next) {
 async function listar(req, res, next) {
   try {
     const facturas = await Factura.findAll({
+      where: { empresa_id: req.usuario.empresa_id },
       include: [Cliente],
       order: [['fecha_emision', 'DESC']],
     });
@@ -228,7 +249,8 @@ async function listar(req, res, next) {
 
 async function obtener(req, res, next) {
   try {
-    const factura = await Factura.findByPk(req.params.id, {
+    const factura = await Factura.findOne({
+      where: { id: req.params.id, empresa_id: req.usuario.empresa_id },
       include: [{ model: DetalleFactura, as: 'detalles' }, Cliente],
     });
     if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
@@ -238,10 +260,22 @@ async function obtener(req, res, next) {
 
 async function consultarEstado(req, res, next) {
   try {
-    const factura = await Factura.findByPk(req.params.id);
+    const factura = await Factura.findOne({
+      where: { id: req.params.id, empresa_id: req.usuario.empresa_id },
+    });
     if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
 
-    const data = await haciendaService.consultarEstado(factura.clave);
+    let data;
+    try {
+      data = await haciendaService.consultarEstado(factura.clave);
+    } catch (errHacienda) {
+      const detalle = errHacienda.response?.data || errHacienda.message;
+      return res.status(502).json({
+        error: 'No se pudo consultar el estado en Hacienda',
+        detalles: detalle,
+      });
+    }
+
     await factura.update({
       estado_hacienda: data['ind-estado'] || factura.estado_hacienda,
       respuesta_hacienda: JSON.stringify(data),

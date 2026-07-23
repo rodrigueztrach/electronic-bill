@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
+import UbicacionSelect from '../components/UbicacionSelect';
 
 const vacio = {
   tipo_identificacion: '01', identificacion: '', nombre: '', email: '', telefono: '',
-  provincia: '', canton: '', distrito: '', barrio: '', senas_extra: '',
+  senas_extra: '',
+};
+
+const ubicacionVacia = {
+  provincia: '', provincia_nombre: '',
+  canton: '', canton_nombre: '',
+  distrito: '', distrito_nombre: '',
+  barrio: '00', barrio_nombre: '',
 };
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [form, setForm] = useState(vacio);
+  const [ubicacion, setUbicacion] = useState(ubicacionVacia);
 
   async function cargar() {
     const { data } = await api.get('/clientes');
@@ -23,8 +32,10 @@ export default function Clientes() {
 
   async function onSubmit(e) {
     e.preventDefault();
-    await api.post('/clientes', form);
+    const payload = { ...form, ...ubicacion };
+    await api.post('/clientes', payload);
     setForm(vacio);
+    setUbicacion(ubicacionVacia);
     cargar();
   }
 
@@ -51,9 +62,9 @@ export default function Clientes() {
           <input name="nombre" placeholder="Nombre completo" value={form.nombre} onChange={onChange} required />
           <input name="email" placeholder="Correo" value={form.email} onChange={onChange} />
           <input name="telefono" placeholder="Teléfono" value={form.telefono} onChange={onChange} />
-          <input name="provincia" placeholder="Provincia (1 dígito)" value={form.provincia} onChange={onChange} />
-          <input name="canton" placeholder="Cantón (2 dígitos)" value={form.canton} onChange={onChange} />
-          <input name="distrito" placeholder="Distrito (2 dígitos)" value={form.distrito} onChange={onChange} />
+
+          <UbicacionSelect value={ubicacion} onChange={setUbicacion} />
+
           <input name="senas_extra" placeholder="Señas exactas" value={form.senas_extra} onChange={onChange} />
           <button type="submit">Guardar cliente</button>
         </form>

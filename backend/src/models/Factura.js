@@ -1,14 +1,15 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-// Tipos de documento según catálogo de Hacienda:
-// 01 Factura Electrónica, 02 Nota Débito, 03 Nota Crédito,
-// 04 Tiquete Electrónico, 08 FEC, 09 Factura de Compra, 10 FE Exportación
 const Factura = sequelize.define('Factura', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
+  },
+  empresa_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
   },
   tipo_documento: {
     type: DataTypes.STRING(2),
@@ -16,13 +17,11 @@ const Factura = sequelize.define('Factura', {
     defaultValue: '01',
   },
   clave: {
-    // 50 dígitos, identificador único nacional del comprobante
     type: DataTypes.STRING(50),
     allowNull: false,
     unique: true,
   },
   consecutivo: {
-    // 20 dígitos
     type: DataTypes.STRING(20),
     allowNull: false,
     unique: true,
@@ -36,12 +35,10 @@ const Factura = sequelize.define('Factura', {
     allowNull: false,
   },
   condicion_venta: {
-    // 01 Contado, 02 Crédito, ...
     type: DataTypes.STRING(2),
     defaultValue: '01',
   },
   medio_pago: {
-    // 01 Efectivo, 02 Tarjeta, 03 Cheque, 04 Transferencia, ...
     type: DataTypes.STRING(2),
     defaultValue: '01',
   },
@@ -53,6 +50,7 @@ const Factura = sequelize.define('Factura', {
     type: DataTypes.DECIMAL(18, 5),
     defaultValue: 1,
   },
+  plazo_credito: DataTypes.INTEGER,
   total_gravado: DataTypes.DECIMAL(18, 5),
   total_exento: DataTypes.DECIMAL(18, 5),
   total_venta: DataTypes.DECIMAL(18, 5),
@@ -62,7 +60,6 @@ const Factura = sequelize.define('Factura', {
     type: DataTypes.TEXT,
   },
   estado_hacienda: {
-    // recibido, procesando, aceptado, rechazado, error_envio
     type: DataTypes.STRING(20),
     defaultValue: 'pendiente',
   },

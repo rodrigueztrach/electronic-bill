@@ -126,3 +126,76 @@ ALTER TABLE clientes
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
+
+
+
+ALTER TABLE productos
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+ALTER TABLE facturas
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+CREATE INDEX IF NOT EXISTS idx_productos_empresa ON productos(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_empresa ON facturas(empresa_id);
+
+
+
+-- La tabla actual tiene tipo_documento como PK único (global).
+-- La recreamos con clave compuesta (empresa_id + tipo_documento).
+DROP TABLE IF EXISTS contadores_consecutivo;
+
+CREATE TABLE contadores_consecutivo (
+  empresa_id UUID NOT NULL REFERENCES empresa(id),
+  tipo_documento VARCHAR(2) NOT NULL,
+  numero INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (empresa_id, tipo_documento)
+);
+
+-- Campos del emisor que antes vivían en variables de entorno (.env)
+-- y ahora deben vivir por empresa.
+ALTER TABLE empresa
+  ADD COLUMN IF NOT EXISTS actividad_economica VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS sucursal VARCHAR(3) NOT NULL DEFAULT '001',
+  ADD COLUMN IF NOT EXISTS terminal VARCHAR(5) NOT NULL DEFAULT '00001';
+
+
+
+  -- Clientes: nombres de ubicación + empresa_id
+ALTER TABLE clientes
+  ADD COLUMN IF NOT EXISTS provincia_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS canton_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS distrito_nombre VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS barrio_nombre VARCHAR(50);
+
+ALTER TABLE clientes
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+CREATE INDEX IF NOT EXISTS idx_clientes_empresa ON clientes(empresa_id);
+
+-- Productos: empresa_id
+ALTER TABLE productos
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+CREATE INDEX IF NOT EXISTS idx_productos_empresa ON productos(empresa_id);
+
+-- Facturas: empresa_id
+ALTER TABLE facturas
+  ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresa(id);
+
+CREATE INDEX IF NOT EXISTS idx_facturas_empresa ON facturas(empresa_id);
+
+-- Empresa: campos de actividad económica, sucursal, terminal
+ALTER TABLE empresa
+  ADD COLUMN IF NOT EXISTS actividad_economica VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS sucursal VARCHAR(3) NOT NULL DEFAULT '001',
+  ADD COLUMN IF NOT EXISTS terminal VARCHAR(5) NOT NULL DEFAULT '00001';
+
+-- Contador de consecutivos por empresa
+DROP TABLE IF EXISTS contadores_consecutivo;
+
+CREATE TABLE contadores_consecutivo (
+  empresa_id UUID NOT NULL REFERENCES empresa(id),
+  tipo_documento VARCHAR(2) NOT NULL,
+  numero INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (empresa_id, tipo_documento)
+);

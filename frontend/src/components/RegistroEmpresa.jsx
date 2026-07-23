@@ -55,7 +55,7 @@ export default function RegistroEmpresa() {
 
     try {
       // Endpoint público de registro (ej. /auth/register o /empresa/registro)
-      const { data } = await api.post('/auth/register', formData);
+      const { data } = await api.post('/auth/registro', formData);
       
       setSuccess('¡Registro completado con éxito! Redirigiendo al login...');
       setTimeout(() => navigate('/login'), 2000);
