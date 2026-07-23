@@ -1,16 +1,12 @@
-const { Factura, DetalleFactura, Cliente, Producto, sequelize } = require('../models');
+const { Factura, DetalleFactura, Cliente, Producto, Empresa, sequelize } = require('../models');
 const { generarConsecutivo, generarClave } = require('../utils/clave');
 const { codigoTarifaIVA } = require('../utils/tarifaIva');
 const { construirXmlFactura } = require('../services/xmlService');
 const { firmarXml } = require('../services/firmaService');
 const haciendaService = require('../services/haciendaService');
-const emisorCfg = require('../config/emisor');
+const { obtenerConfigEmisor } = require('../services/emisorService');
+const { QueryTypes } = require('sequelize');
 
-/**
- * Calcula los montos de cada línea y los totales de la factura a partir
- * de las líneas recibidas del frontend: [{ producto_id, cantidad, monto_descuento }]
- * Los productos se buscan SIEMPRE dentro de la empresa del usuario autenticado.
- */
 async function calcularLineasYTotales(lineasInput, empresaId) {
   let totalGravado = 0;
   let totalExento = 0;
@@ -74,18 +70,44 @@ async function calcularLineasYTotales(lineasInput, empresaId) {
   };
 }
 
-async function reservarConsecutivo(tipoDocumento, t) {
-  const [rows] = await sequelize.query(
-    `SELECT numero FROM contadores_consecutivo WHERE tipo_documento = :tipo FOR UPDATE`,
-    { replacements: { tipo: tipoDocumento }, transaction: t }
-  );
-  if (!rows) {
-    throw new Error(`No existe contador configurado para tipo_documento ${tipoDocumento}`);
-  }
-  const numero = rows.numero + 1;
+/**
+ * Reserva el siguiente consecutivo PARA ESTA EMPRESA. Si es la primera
+ * vez que esta empresa emite este tipo de documento, crea la fila del
+ * contador empezando en 0. FOR UPDATE bloquea la fila para evitar que
+ * dos facturas casi simultáneas de la MISMA empresa reciban el mismo número.
+ *
+ * IMPORTANTE: se usa { type: QueryTypes.SELECT } para que sequelize.query
+ * devuelva directamente el arreglo de filas (no la tupla [resultados, metadata]
+ * por defecto). Sin esto, "rows" terminaba siendo el arreglo completo en vez
+ * de una fila, y "rows.numero" daba undefined -> NaN.
+ */
+async function reservarConsecutivo(empresaId, tipoDocumento, t) {
   await sequelize.query(
-    `UPDATE contadores_consecutivo SET numero = :n WHERE tipo_documento = :tipo`,
-    { replacements: { n: numero, tipo: tipoDocumento }, transaction: t }
+    `INSERT INTO contadores_consecutivo (empresa_id, tipo_documento, numero)
+     VALUES (:empresaId, :tipo, 0)
+     ON CONFLICT (empresa_id, tipo_documento) DO NOTHING`,
+    { replacements: { empresaId, tipo: tipoDocumento }, transaction: t }
+  );
+
+  const filas = await sequelize.query(
+    `SELECT numero FROM contadores_consecutivo
+     WHERE empresa_id = :empresaId AND tipo_documento = :tipo FOR UPDATE`,
+    {
+      replacements: { empresaId, tipo: tipoDocumento },
+      transaction: t,
+      type: QueryTypes.SELECT,
+    }
+  );
+
+  if (!filas.length) {
+    throw new Error(`No se pudo reservar consecutivo para empresa ${empresaId} / tipo ${tipoDocumento}`);
+  }
+
+  const numero = filas[0].numero + 1;
+  await sequelize.query(
+    `UPDATE contadores_consecutivo SET numero = :n
+     WHERE empresa_id = :empresaId AND tipo_documento = :tipo`,
+    { replacements: { n: numero, empresaId, tipo: tipoDocumento }, transaction: t }
   );
   return numero;
 }
@@ -116,11 +138,14 @@ async function crear(req, res, next) {
       return res.status(400).json({ error: 'tipo_cambio inválido para moneda distinta de CRC' });
     }
 
-    // El cliente debe pertenecer a la misma empresa del usuario autenticado.
+    const empresa = await Empresa.findByPk(empresaId);
+    if (!empresa) return res.status(400).json({ error: 'Empresa emisora no encontrada' });
+    const emisorCfg = obtenerConfigEmisor(empresa);
+
     const cliente = await Cliente.findOne({ where: { id: cliente_id, empresa_id: empresaId } });
     if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    const numeroConsecutivo = await reservarConsecutivo(tipo_documento, t);
+    const numeroConsecutivo = await reservarConsecutivo(empresaId, tipo_documento, t);
     const consecutivo = generarConsecutivo({
       sucursal: emisorCfg.sucursal,
       terminal: emisorCfg.terminal,
@@ -160,7 +185,7 @@ async function crear(req, res, next) {
 
     await t.commit();
 
-    const xmlSinFirmar = construirXmlFactura({ factura, cliente, detalles: lineas });
+    const xmlSinFirmar = construirXmlFactura({ factura, cliente, detalles: lineas, emisor: emisorCfg });
 
     let xmlFirmado;
     try {
@@ -240,7 +265,17 @@ async function consultarEstado(req, res, next) {
     });
     if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
 
-    const data = await haciendaService.consultarEstado(factura.clave);
+    let data;
+    try {
+      data = await haciendaService.consultarEstado(factura.clave);
+    } catch (errHacienda) {
+      const detalle = errHacienda.response?.data || errHacienda.message;
+      return res.status(502).json({
+        error: 'No se pudo consultar el estado en Hacienda',
+        detalles: detalle,
+      });
+    }
+
     await factura.update({
       estado_hacienda: data['ind-estado'] || factura.estado_hacienda,
       respuesta_hacienda: JSON.stringify(data),

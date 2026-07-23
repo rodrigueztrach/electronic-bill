@@ -1,5 +1,3 @@
-const { obtenerConfigEmisor } = require('../services/emisorService'); 
-
 /**
  * Construye la configuración del emisor (equivalente al antiguo
  * config/emisor.js estático) a partir del registro de Empresa
