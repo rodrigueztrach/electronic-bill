@@ -129,7 +129,7 @@ export default function FacturaForm() {
 
         {condicionVenta === '02' && (
           <div>
-            <label>Plazo de crédito (días)</label>
+            <label>Plazo de credito (días)</label>
             <input
               type="number" min="1" step="1" placeholder="Ej. 30"
               value={plazoCredito}
