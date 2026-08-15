@@ -20,6 +20,12 @@ const CODIGO_TARIFA_EXENTO = '01';
 function codigoTarifaIVA({ porcentaje, esExento }) {
   if (esExento) return CODIGO_TARIFA_EXENTO;
 
+  if (porcentaje === null || porcentaje === undefined) {
+    throw new Error(
+      'El porcentaje de IVA es requerido y no puede ser null o undefined.'
+    );
+  }
+
   const p = Number(porcentaje);
   const codigo = TARIFA_IVA_POR_PORCENTAJE[p];
   if (!codigo) {
