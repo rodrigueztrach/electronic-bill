@@ -122,7 +122,7 @@ export default function Login() {
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '5px' }}>Contraseña</label>
+            <label style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '5px' }}>Password</label>
             <input 
               type="password" 
               value={password} 
