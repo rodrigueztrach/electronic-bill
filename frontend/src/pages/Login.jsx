@@ -112,7 +112,7 @@ export default function Login() {
         <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '25px' }}>LOGIN</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '5px' }}>Correo electrónico</label>
+            <label style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '5px' }}>Email</label>
             <input 
               type="email" 
               value={email} 
