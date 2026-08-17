@@ -109,7 +109,7 @@ export default function Login() {
     <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
       <NavbarPublico />
       <div className="card" style={{ maxWidth: 380, margin: '60px auto', backgroundColor: '#fff', padding: '30px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '25px' }}>Iniciar sesión</h2>
+        <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '25px' }}>LOGIN</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '5px' }}>Correo electrónico</label>

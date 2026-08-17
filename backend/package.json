@@ -4,11 +4,7 @@
   "description": "API REST para facturación electrónica de Costa Rica (Hacienda v4.3)",
   "main": "src/server.js",
   "type": "commonjs",
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "migrate": "node src/config/migrate.js"
-  },
+
   "dependencies": {
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
