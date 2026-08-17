@@ -12,7 +12,7 @@ function NavbarPublico() {
       </div>
       <nav style={{ display: 'flex', gap: '25px', fontSize: '15px', alignItems: 'center' }}>
         <Link to="/login" style={{ color: '#fff', textDecoration: 'none' }}>Inicio</Link>
-        <Link to="/nosotros" style={{ color: '#fff', textDecoration: 'none' }}>Nosotros</Link>
+        <Link to="/nosotros" style={{ color: '#fff', textDecoration: 'none' }}>Nosotros quienes somos</Link>
         <Link to="/servicios" style={{ color: '#fff', textDecoration: 'none' }}>Servicios</Link>
         <Link to="/login" style={{ color: '#fff', textDecoration: 'none' }}>Planes</Link>
         <Link to="/registro" style={{ color: '#fff', textDecoration: 'none', fontWeight: 'bold' }}>Regístrese</Link>
