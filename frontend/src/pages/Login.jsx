@@ -127,7 +127,7 @@ export default function Login() {
               type="password" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
-              required 
+              required n
               style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
             />
           </div>
